@@ -1,0 +1,19 @@
+author: mongoose-os
+name: gcp
+type: lib
+description: GCP support for mOS
+version: 1.0
+skeleton_version: 2017-05-18
+sources:
+  - src
+config_schema:
+  - ["gcp", "o", {title: "GCP IOT settings"}]
+  - ["gcp.enable", "b", false, {title: "Enable GCP IOT"}]
+  - ["gcp.project", "s", "", {title: "Project ID"}]
+  - ["gcp.region", "s", "", {title: "Region name"}]
+  - ["gcp.registry", "s", "", {title: "Device registry name"}]
+  - ["gcp.device", "s", "", {title: "Device name"}]
+  - ["gcp.key", "s", "", {title: "Private key to use for token signing"}]
+  - ["gcp.token_ttl", "i", 3600, {title: "Life time of the token"}]
+tags:
+  - gcp
