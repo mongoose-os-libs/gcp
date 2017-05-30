@@ -134,27 +134,27 @@ void mgos_gcp_auth_cb(char **client_id, char **user, char **pass, void *arg) {
   (void) arg;
 }
 
-enum mgos_init_result mgos_gcp_init(void) {
+bool mgos_gcp_init(void) {
   struct sys_config_gcp *gcfg = &get_cfg()->gcp;
-  if (!gcfg->enable) return MGOS_INIT_OK;
+  if (!gcfg->enable) return true;
   if (gcfg->project == NULL || gcfg->region == NULL || gcfg->registry == NULL ||
       gcfg->key == NULL) {
     LOG(LL_INFO, ("gcp.project, region, registry and key are required"));
-    return MGOS_INIT_GCP_INIT_FAILED;
+    return false;
   }
   if (get_device_name() == NULL) {
     LOG(LL_INFO, ("Either gcp.device or device.id must be set"));
-    return MGOS_INIT_GCP_INIT_FAILED;
+    return false;
   }
   mbedtls_pk_init(&s_token_key);
   int r = mbedtls_pk_parse_keyfile(&s_token_key, gcfg->key, NULL);
   if (r != 0) {
     LOG(LL_INFO, ("Invalid gcp.key (0x%x)", r));
-    return MGOS_INIT_GCP_INIT_FAILED_INVALID_KEY;
+    return false;
   }
   mgos_mqtt_set_auth_callback(mgos_gcp_auth_cb, NULL);
   LOG(LL_INFO, ("GCP client for %s/%s/%s/%s, %s key in %s", gcfg->project,
                 gcfg->region, gcfg->registry, get_device_name(),
                 mbedtls_pk_get_name(&s_token_key), gcfg->key));
-  return MGOS_INIT_OK;
+  return true;
 }
