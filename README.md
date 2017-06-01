@@ -1,4 +1,4 @@
-# Google IoT Core support for mOS
+# Google IoT Core integration for Mongoose OS
 
 First, upload the private key:
 

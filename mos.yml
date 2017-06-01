@@ -1,9 +1,11 @@
 author: mongoose-os
-name: gcp
 type: lib
-description: GCP support for mOS
+description: Google IoT cloud integration
 version: 1.0
-skeleton_version: 2017-05-18
+tags:
+  - cloud
+  - c
+
 sources:
   - src
 config_schema:
@@ -15,5 +17,5 @@ config_schema:
   - ["gcp.device", "s", "", {title: "Device name"}]
   - ["gcp.key", "s", "", {title: "Private key to use for token signing"}]
   - ["gcp.token_ttl", "i", 3600, {title: "Life time of the token"}]
-tags:
-  - gcp
+
+skeleton_version: 2017-05-18
