@@ -1,6 +1,6 @@
 author: mongoose-os
 type: lib
-description: Google IoT cloud integration
+description: Google IoT Core integration
 version: 1.0
 tags:
   - cloud
