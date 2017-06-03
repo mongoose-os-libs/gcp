@@ -17,5 +17,10 @@ config_schema:
   - ["gcp.device", "s", "", {title: "Device name"}]
   - ["gcp.key", "s", "", {title: "Private key to use for token signing"}]
   - ["gcp.token_ttl", "i", 3600, {title: "Life time of the token"}]
+libs:
+  - origin: https://github.com/mongoose-os-libs/mqtt
+tags:
+  - gcp
+  - cloud
 
 skeleton_version: 2017-05-18

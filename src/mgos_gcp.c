@@ -17,8 +17,10 @@
 #include "frozen/frozen.h"
 #include "mongoose/mongoose.h"
 
-#include "fw/src/mgos_mqtt.h"
 #include "fw/src/mgos_sys_config.h"
+
+/* mqtt lib should be included */
+#include "mgos_mqtt.h"
 
 mbedtls_pk_context s_token_key;
 extern int mg_ssl_if_mbed_random(void *ctx, unsigned char *buf, size_t len);
