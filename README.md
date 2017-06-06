@@ -1,5 +1,11 @@
 # Google IoT Core integration for Mongoose OS
 
+## Overview
+
+This library implements integration of Mongoose OS with Google IoT Core.
+
+## Google IoT Core onboarding instructions
+
 First, upload the private key:
 
 ```bash
