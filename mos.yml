@@ -2,9 +2,6 @@ author: mongoose-os
 type: lib
 description: Google IoT Core integration
 version: 1.0
-tags:
-  - cloud
-  - c
 
 sources:
   - src
@@ -20,7 +17,8 @@ config_schema:
 libs:
   - origin: https://github.com/mongoose-os-libs/mqtt
 tags:
-  - gcp
+  - google
   - cloud
+  - c
 
 skeleton_version: 2017-05-18
