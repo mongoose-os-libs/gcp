@@ -10,27 +10,27 @@ This library implements integration of Mongoose OS with Google IoT Core.
 - Two files will be created: `ec_private.pem` and `ec_public.pem`
 - Initialise the device:
 
-```bash
-mos flash esp8266       # Or esp32
-mos wifi SSID PASS      # Your WiFi network name and password
-```
+	```bash
+	mos flash esp8266       # Or esp32
+	mos wifi SSID PASS      # Your WiFi network name and password
+	```
 
 - Copy the private key to the device
 
-```bash
-mos put ec_private.pem
-```
+	```bash
+	mos put ec_private.pem
+	```
 
 - Configure the device's GCP settings
 
-```bash
-PROJECT=my-project
-REGION=us-central1
-REGISTRY=my-registry
-DEVICE_ID=my-es256-device
+	```bash
+	PROJECT=my-project
+	REGION=us-central1
+	REGISTRY=my-registry
+	DEVICE_ID=my-es256-device
 
-mos config-set mqtt.enable=true mqtt.server=mqtt.googleapis.com:8883 mqtt.ssl_ca_cert=ca.pem sntp.enable=true gcp.enable=true gcp.project=$PROJECT gcp.region=$REGION gcp.registry=$REGISTRY gcp.device=$DEVICE_ID device.id=$DEVICE_ID gcp.key=ec_private.pem debug.stderr_topic=/devices/$DEVICE_ID/events/log debug.stdout_topic=/devices/$DEVICE_ID/events/log
-```
+	mos config-set mqtt.enable=true mqtt.server=mqtt.googleapis.com:8883 mqtt.ssl_ca_cert=ca.pem sntp.enable=true gcp.enable=true gcp.project=$PROJECT gcp.region=$REGION gcp.registry=$REGISTRY gcp.device=$DEVICE_ID device.id=$DEVICE_ID gcp.key=ec_private.pem debug.stderr_topic=/devices/$DEVICE_ID/events/log debug.stdout_topic=/devices/$DEVICE_ID/events/log
+	```
 
 ## Test
 
