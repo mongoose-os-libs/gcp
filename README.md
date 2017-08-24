@@ -2,47 +2,54 @@
 
 This library implements integration of Mongoose OS with Google IoT Core.
 
-## Google IoT Core onboarding instructions
+## Setup cloud side
 
-- Set up Google IoT Core account
-- Follow the [device manager guide](https://cloud.google.com/iot/docs/device_manager_guide)
-  to register your device and generate ES256 key pair
-- Two files will be created: `ec_private.pem` and `ec_public.pem`
-- Initialise the device:
+Install [gcloud command line tool](https://cloud.google.com/sdk/gcloud/)
+Install beta components:
+```
+gcloud components install beta
+```
+Authenticate with Google Cloud:
+```
+gcloud auth login
+```
+Create cloud project - choose your unique project name:
+```
+gcloud projects create YOUR_PROJECT_NAME
+```
+Add permissions for IoT Core:
+```
+gcloud projects add-iam-policy-binding YOUR_PROJECT_NAME --member=serviceAccount:cloud-iot@system.gserviceaccount.com --role=roles/pubsub.publisher
+```
+Set default values for `gcloud`:
+```
+gcloud config set project YOUR_PROJECT_NAME
+```
+Create PubSub topic for device data:
+```
+gcloud beta pubsub topics create iot-topic
+```
+Create PubSub subscription for device data:
+```
+gcloud beta pubsub subscriptions create --topic iot-topic iot-subscription
+```
+Create device registry:
+```
+gcloud beta iot registries create iot-registry --region europe-west1 --event-pubsub-topic=iot-topic
+```
 
-	```bash
-	mos flash esp8266       # Or esp32
-	mos wifi SSID PASS      # Your WiFi network name and password
-	```
+## Setup device side
 
-- Copy the private key to the device
+Setup WiFi:
+```
+mos wifi WIFI_NETWORK_NAME WIFI_PASSWORD
+```
 
-	```bash
-	mos put ec_private.pem
-	```
-
-- Configure the device's GCP settings
-
-  ```bash
-  PROJECT=my-project \
-  REGION=us-central1 \
-  REGISTRY=my-registry \
-  DEVICE_ID=my-es256-device ; \
-  mos config-set \
-    mqtt.enable=true \
-    mqtt.server=mqtt.googleapis.com:8883 \
-    mqtt.client_id=projects/$PROJECT/locations/$REGION/registries/$REGISTRY/devices/$DEVICE_ID \
-    mqtt.ssl_ca_cert=ca.pem \
-    sntp.enable=true \
-    gcp.enable=true \
-    gcp.project=$PROJECT \
-    gcp.region=$REGION \
-    gcp.registry=$REGISTRY \
-    gcp.device=$DEVICE_ID \
-    device.id=$DEVICE_ID \
-    gcp.key=ec_private.pem \
-    rpc.mqtt.enable=false
-  ```
+Register device on Google IoT Core. If a device is already registered,
+this command deletes it, then registers again:
+```
+mos gcp-iot-setup --gcp-project YOUR_PROJECT_NAME --gcp-region europe-west1 --gcp-registry iot-registry
+```
 
 ## Test
 
