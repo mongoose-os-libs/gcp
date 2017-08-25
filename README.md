@@ -5,6 +5,7 @@ This library implements integration of Mongoose OS with Google IoT Core.
 ## Setup cloud side
 
 Install [gcloud command line tool](https://cloud.google.com/sdk/gcloud/)
+
 Install beta components:
 ```
 gcloud components install beta
