@@ -5,6 +5,8 @@ version: 1.0
 
 sources:
   - src
+includes:
+  - include
 
 config_schema:
   - ["gcp", "o", {title: "GCP IOT settings"}]
