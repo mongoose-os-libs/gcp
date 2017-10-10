@@ -26,8 +26,8 @@ mbedtls_pk_context s_token_key;
 extern int mg_ssl_if_mbed_random(void *ctx, unsigned char *buf, size_t len);
 
 static const char *get_device_name(void) {
-  const char *result = get_cfg()->gcp.device;
-  if (result == NULL) result = get_cfg()->device.id;
+  const char *result = mgos_sys_config_get_gcp_device();
+  if (result == NULL) result = mgos_sys_config_get_gcp_device();
   return result;
 }
 
@@ -61,7 +61,6 @@ static void base64url_putc(char c, void *arg) {
 void mgos_gcp_auth_cb(char **client_id, char **user, char **pass, void *arg) {
   double now = mg_time();
   struct jwt_printer_ctx ctx;
-  struct sys_config_gcp *gcfg = &get_cfg()->gcp;
   bool is_rsa = mbedtls_pk_can_do(&s_token_key, MBEDTLS_PK_RSA);
 
   *client_id = *user = *pass = NULL;
@@ -74,9 +73,10 @@ void mgos_gcp_auth_cb(char **client_id, char **user, char **pass, void *arg) {
   cs_base64_finish(&ctx.b64_ctx);
   base64url_putc('.', &ctx);
   uint64_t iat = (int64_t) now;
-  uint64_t exp = iat + gcfg->token_ttl;
+  uint64_t exp = iat + mgos_sys_config_get_gcp_token_ttl();
   cs_base64_init(&ctx.b64_ctx, base64url_putc, &ctx);
-  json_printf(&out, "{aud:%Q,iat:%llu,exp:%llu}", gcfg->project, iat, exp);
+  json_printf(&out, "{aud:%Q,iat:%llu,exp:%llu}",
+              mgos_sys_config_get_gcp_project(), iat, exp);
   cs_base64_finish(&ctx.b64_ctx);
 
   unsigned char hash[32];
@@ -126,7 +126,9 @@ void mgos_gcp_auth_cb(char **client_id, char **user, char **pass, void *arg) {
   mbuf_append(&ctx.jwt, "", 1); /* NUL */
 
   mg_asprintf(client_id, 0, "projects/%s/locations/%s/registries/%s/devices/%s",
-              gcfg->project, gcfg->region, gcfg->registry, get_device_name());
+              mgos_sys_config_get_gcp_project(),
+              mgos_sys_config_get_gcp_region(),
+              mgos_sys_config_get_gcp_registry(), get_device_name());
   *user = strdup("unused");
   *pass = ctx.jwt.buf; /* No mbuf_free, caller owns the buffer. */
 
@@ -137,10 +139,11 @@ void mgos_gcp_auth_cb(char **client_id, char **user, char **pass, void *arg) {
 }
 
 bool mgos_gcp_init(void) {
-  struct sys_config_gcp *gcfg = &get_cfg()->gcp;
-  if (!gcfg->enable) return true;
-  if (gcfg->project == NULL || gcfg->region == NULL || gcfg->registry == NULL ||
-      gcfg->key == NULL) {
+  if (!mgos_sys_config_get_gcp_enable()) return true;
+  if (mgos_sys_config_get_gcp_project() == NULL ||
+      mgos_sys_config_get_gcp_region() == NULL ||
+      mgos_sys_config_get_gcp_registry() == NULL ||
+      mgos_sys_config_get_gcp_key() == NULL) {
     LOG(LL_INFO, ("gcp.project, region, registry and key are required"));
     return false;
   }
@@ -149,14 +152,17 @@ bool mgos_gcp_init(void) {
     return false;
   }
   mbedtls_pk_init(&s_token_key);
-  int r = mbedtls_pk_parse_keyfile(&s_token_key, gcfg->key, NULL);
+  int r = mbedtls_pk_parse_keyfile(&s_token_key, mgos_sys_config_get_gcp_key(),
+                                   NULL);
   if (r != 0) {
     LOG(LL_INFO, ("Invalid gcp.key (0x%x)", r));
     return false;
   }
   mgos_mqtt_set_auth_callback(mgos_gcp_auth_cb, NULL);
-  LOG(LL_INFO, ("GCP client for %s/%s/%s/%s, %s key in %s", gcfg->project,
-                gcfg->region, gcfg->registry, get_device_name(),
-                mbedtls_pk_get_name(&s_token_key), gcfg->key));
+  LOG(LL_INFO,
+      ("GCP client for %s/%s/%s/%s, %s key in %s",
+       mgos_sys_config_get_gcp_project(), mgos_sys_config_get_gcp_region(),
+       mgos_sys_config_get_gcp_registry(), get_device_name(),
+       mbedtls_pk_get_name(&s_token_key), mgos_sys_config_get_gcp_key()));
   return true;
 }
