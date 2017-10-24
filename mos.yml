@@ -3,10 +3,7 @@ type: lib
 description: Google IoT Core integration
 version: 1.0
 
-# GCP uses mbedtls for ASN.1 marshalling, but we don't have mbedtls on cc3200,
-# so we can't build GCP there so far.
-# TODO(rojer): fix it
-platforms: [ esp32, esp8266 ]
+platforms: [ esp32, esp8266, cc3200, cc3220 ]
 
 sources:
   - src
