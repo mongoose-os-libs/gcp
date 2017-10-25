@@ -58,12 +58,13 @@ static void base64url_putc(char c, void *arg) {
   mbuf_append(&ctx->jwt, &c, 1);
 }
 
-void mgos_gcp_auth_cb(char **client_id, char **user, char **pass, void *arg) {
+static void mgos_gcp_mqtt_connect(struct mg_connection *c,
+                                  const char *client_id,
+                                  struct mg_send_mqtt_handshake_opts *opts,
+                                  void *arg) {
   double now = mg_time();
   struct jwt_printer_ctx ctx;
   bool is_rsa = mbedtls_pk_can_do(&s_token_key, MBEDTLS_PK_RSA);
-
-  *client_id = *user = *pass = NULL;
 
   mbuf_init(&ctx.jwt, 200);
   struct json_out out = {.printer = json_printer_jwt, .u.data = &ctx};
@@ -84,18 +85,23 @@ void mgos_gcp_auth_cb(char **client_id, char **user, char **pass, void *arg) {
                        (const unsigned char *) ctx.jwt.buf, ctx.jwt.len, hash);
   if (ret != 0) {
     LOG(LL_ERROR, ("mbedtls_md failed: 0x%x", ret));
+    c->flags |= MG_F_CLOSE_IMMEDIATELY;
     return;
   }
 
   size_t key_len = mbedtls_pk_get_len(&s_token_key);
   size_t sig_len = (is_rsa ? key_len : key_len * 2 + 10);
   unsigned char *sig = (unsigned char *) calloc(1, sig_len);
-  if (sig == NULL) return;
+  if (sig == NULL) {
+    c->flags |= MG_F_CLOSE_IMMEDIATELY;
+    return;
+  }
 
   ret = mbedtls_pk_sign(&s_token_key, MBEDTLS_MD_SHA256, hash, sizeof(hash),
                         sig, &sig_len, mg_ssl_if_mbed_random, NULL);
   if (ret != 0) {
     LOG(LL_ERROR, ("mbedtls_pk_sign failed: 0x%x", ret));
+    c->flags |= MG_F_CLOSE_IMMEDIATELY;
     return;
   }
 
@@ -125,17 +131,21 @@ void mgos_gcp_auth_cb(char **client_id, char **user, char **pass, void *arg) {
 
   mbuf_append(&ctx.jwt, "", 1); /* NUL */
 
-  mg_asprintf(client_id, 0, "projects/%s/locations/%s/registries/%s/devices/%s",
+  char *cid = NULL;
+  mg_asprintf(&cid, 0, "projects/%s/locations/%s/registries/%s/devices/%s",
               mgos_sys_config_get_gcp_project(),
               mgos_sys_config_get_gcp_region(),
               mgos_sys_config_get_gcp_registry(), get_device_name());
-  *user = strdup("unused");
-  *pass = ctx.jwt.buf; /* No mbuf_free, caller owns the buffer. */
 
-  LOG(LL_DEBUG, ("ID : %s", *client_id));
+  LOG(LL_DEBUG, ("ID : %s", cid));
   LOG(LL_DEBUG, ("JWT: %s", ctx.jwt.buf));
 
+  opts->user_name = "unused";
+  opts->password = ctx.jwt.buf; /* No mbuf_free, caller owns the buffer. */
+  mg_send_mqtt_handshake_opt(c, cid, *opts);
+  free(cid);
   (void) arg;
+  (void) client_id;
 }
 
 bool mgos_gcp_init(void) {
@@ -158,7 +168,7 @@ bool mgos_gcp_init(void) {
     LOG(LL_INFO, ("Invalid gcp.key (0x%x)", r));
     return false;
   }
-  mgos_mqtt_set_auth_callback(mgos_gcp_auth_cb, NULL);
+  mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, NULL);
   LOG(LL_INFO,
       ("GCP client for %s/%s/%s/%s, %s key in %s",
        mgos_sys_config_get_gcp_project(), mgos_sys_config_get_gcp_region(),
