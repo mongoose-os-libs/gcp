@@ -5,7 +5,7 @@
 
 #include "mgos_gcp.h"
 
-#include "common/base64.h"
+#include "common/cs_base64.h"
 #include "common/cs_dbg.h"
 #include "common/json_utils.h"
 #include "common/mbuf.h"
