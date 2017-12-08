@@ -2,6 +2,10 @@
 
 This library implements integration of Mongoose OS with Google IoT Core.
 
+<iframe src="https://www.youtube.com/embed/Rz6-RvYLLlk"
+  width="560" height="315"  frameborder="0" allowfullscreen></iframe>
+
+
 ## Setup cloud side
 
 Install [gcloud command line tool](https://cloud.google.com/sdk/gcloud/)
@@ -70,7 +74,7 @@ mgos_mqtt_ev         Subscribing to 'my-es256-device/rpc/#'
 Default firmware publishes an MQTT message whenever the "Flash" button is pressed:
 
 ```text
-Published: yes topic: /devices/my-es256-device/events message: {"free_ram":30080,"total_ram":51912} 
+Published: yes topic: /devices/my-es256-device/events message: {"free_ram":30080,"total_ram":51912}
 ```
 
 ## Using ATECC508A crypto chip
