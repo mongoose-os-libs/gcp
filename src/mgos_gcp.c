@@ -3,8 +3,6 @@
  * All rights reserved
  */
 
-#include "mgos_gcp.h"
-
 #include "common/cs_base64.h"
 #include "common/cs_dbg.h"
 #include "common/json_utils.h"
