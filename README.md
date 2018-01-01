@@ -45,15 +45,19 @@ gcloud beta iot registries create iot-registry --region europe-west1 --event-pub
 
 ## Setup device side
 
-Setup WiFi:
+Get project ID of your new project:
+
 ```
-mos wifi WIFI_NETWORK_NAME WIFI_PASSWORD
+gcloud projects list
 ```
 
 Register device on Google IoT Core. If a device is already registered,
-this command deletes it, then registers again:
+this command deletes it, then registers again. Note that this command is
+using `YOUR_PROJECT_ID` instead of `YOUR_PROJECT_NAME`. Take the project ID
+from the result of your previous command:
+
 ```
-mos gcp-iot-setup --gcp-project YOUR_PROJECT_NAME --gcp-region europe-west1 --gcp-registry iot-registry
+mos gcp-iot-setup --gcp-project YOUR_PROJECT_ID --gcp-region europe-west1 --gcp-registry iot-registry
 ```
 
 ## Test
