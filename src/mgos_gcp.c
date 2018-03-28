@@ -12,8 +12,8 @@
 #include "mbedtls/bignum.h"
 #include "mbedtls/pk.h"
 
-#include "frozen/frozen.h"
-#include "mongoose/mongoose.h"
+#include "frozen.h"
+#include "mongoose.h"
 
 #include "mgos_sys_config.h"
 
