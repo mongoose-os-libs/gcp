@@ -23,6 +23,8 @@ config_schema:
 libs:
   - origin: https://github.com/mongoose-os-libs/ca-bundle
   - origin: https://github.com/mongoose-os-libs/mqtt
+  # GCP requires valid time to sign tickets.
+  - origin: https://github.com/mongoose-os-libs/sntp
 
 tags:
   - c
