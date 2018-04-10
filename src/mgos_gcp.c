@@ -27,12 +27,10 @@
 #include "frozen.h"
 #include "mongoose.h"
 
+#include "mgos_mqtt.h"
 #include "mgos_sys_config.h"
 
-/* mqtt lib should be included */
-#include "mgos_mqtt.h"
-
-mbedtls_pk_context s_token_key;
+static mbedtls_pk_context s_token_key;
 extern int mg_ssl_if_mbed_random(void *ctx, unsigned char *buf, size_t len);
 
 static const char *get_device_name(void) {
@@ -83,7 +81,7 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
   json_printf(&out, "{typ:%Q,alg:%Q}", "JWT", (is_rsa ? "RS256" : "ES256"));
   cs_base64_finish(&ctx.b64_ctx);
   base64url_putc('.', &ctx);
-  uint64_t iat = (int64_t) now;
+  uint64_t iat = (uint64_t) now;
   uint64_t exp = iat + mgos_sys_config_get_gcp_token_ttl();
   cs_base64_init(&ctx.b64_ctx, base64url_putc, &ctx);
   json_printf(&out, "{aud:%Q,iat:%llu,exp:%llu}",
@@ -164,18 +162,18 @@ bool mgos_gcp_init(void) {
       mgos_sys_config_get_gcp_region() == NULL ||
       mgos_sys_config_get_gcp_registry() == NULL ||
       mgos_sys_config_get_gcp_key() == NULL) {
-    LOG(LL_INFO, ("gcp.project, region, registry and key are required"));
+    LOG(LL_ERROR, ("gcp.project, region, registry and key are required"));
     return false;
   }
   if (get_device_name() == NULL) {
-    LOG(LL_INFO, ("Either gcp.device or device.id must be set"));
+    LOG(LL_ERROR, ("Either gcp.device or device.id must be set"));
     return false;
   }
   mbedtls_pk_init(&s_token_key);
   int r = mbedtls_pk_parse_keyfile(&s_token_key, mgos_sys_config_get_gcp_key(),
                                    NULL);
   if (r != 0) {
-    LOG(LL_INFO, ("Invalid gcp.key (0x%x)", r));
+    LOG(LL_ERROR, ("Invalid gcp.key (0x%x)", r));
     return false;
   }
   mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, NULL);
@@ -184,5 +182,9 @@ bool mgos_gcp_init(void) {
        mgos_sys_config_get_gcp_project(), mgos_sys_config_get_gcp_region(),
        mgos_sys_config_get_gcp_registry(), get_device_name(),
        mbedtls_pk_get_name(&s_token_key), mgos_sys_config_get_gcp_key()));
-  return true;
+  struct mgos_config_mqtt mcfg = *mgos_sys_config_get_mqtt();
+  mcfg.enable = true;
+  mcfg.server = "mqtt.googleapis.com";
+  if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = "ca.pem";
+  return mgos_mqtt_set_config(&mcfg);
 }
