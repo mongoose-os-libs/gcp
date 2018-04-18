@@ -83,6 +83,10 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
   base64url_putc('.', &ctx);
   uint64_t iat = (uint64_t) now;
   uint64_t exp = iat + mgos_sys_config_get_gcp_token_ttl();
+  if (exp < 1500000000) {
+    LOG(LL_ERROR, ("Time is not set, GCP connection will fail. "
+                   "Set the time or make sure SNTP is enabled and working."));
+  }
   cs_base64_init(&ctx.b64_ctx, base64url_putc, &ctx);
   json_printf(&out, "{aud:%Q,iat:%llu,exp:%llu}",
               mgos_sys_config_get_gcp_project(), iat, exp);
