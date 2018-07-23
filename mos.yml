@@ -3,8 +3,6 @@ type: lib
 description: Google IoT Core integration
 version: 1.0
 
-platforms: [ esp32, esp8266, cc3200, cc3220 ]
-
 sources:
   - src
 
