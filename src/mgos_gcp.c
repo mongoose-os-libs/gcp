@@ -26,9 +26,11 @@
 
 #include "frozen.h"
 #include "mongoose.h"
+#include "mgos_mongoose_internal.h"
 
 #include "mgos_mqtt.h"
 #include "mgos_sys_config.h"
+#include "mgos_timers.h"
 
 static mbedtls_pk_context s_token_key;
 extern int mg_ssl_if_mbed_random(void *ctx, unsigned char *buf, size_t len);
@@ -42,6 +44,10 @@ static const char *get_device_name(void) {
 struct jwt_printer_ctx {
   struct cs_base64_ctx b64_ctx;
   struct mbuf jwt;
+};
+
+struct gcp_state {
+  mgos_timer_id jwt_timeout;
 };
 
 static int json_printer_jwt(struct json_out *out, const char *data,
@@ -66,10 +72,23 @@ static void base64url_putc(char c, void *arg) {
   mbuf_append(&ctx->jwt, &c, 1);
 }
 
+static void mgos_gcp_jwt_timeout(void *param) {
+  struct gcp_state *state = (struct gcp_state *)param;
+  state->jwt_timeout = 0;
+  LOG(LL_DEBUG, ("Disconnecting global MQTT connection due to JWT timeout."));
+  mgos_disconnect(mgos_mqtt_get_global_conn());
+}
+
 static void mgos_gcp_mqtt_connect(struct mg_connection *c,
                                   const char *client_id,
                                   struct mg_send_mqtt_handshake_opts *opts,
                                   void *arg) {
+  struct gcp_state *state = (struct gcp_state *)arg;
+  if (state->jwt_timeout != 0) {
+    mgos_clear_timer(state->jwt_timeout);
+    state->jwt_timeout = 0;
+  }
+
   double now = mg_time();
   struct jwt_printer_ctx ctx;
   bool is_rsa = mbedtls_pk_can_do(&s_token_key, MBEDTLS_PK_RSA);
@@ -82,11 +101,15 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
   cs_base64_finish(&ctx.b64_ctx);
   base64url_putc('.', &ctx);
   uint64_t iat = (uint64_t) now;
-  uint64_t exp = iat + mgos_sys_config_get_gcp_token_ttl();
+  uint64_t ttl = (uint64_t) mgos_sys_config_get_gcp_token_ttl();
+  uint64_t exp = iat + ttl;
   if (exp < 1500000000) {
     LOG(LL_ERROR, ("Time is not set, GCP connection will fail. "
                    "Set the time or make sure SNTP is enabled and working."));
   }
+  state->jwt_timeout = mgos_set_timer((ttl * 1000) - 30000, 0, 
+                                      mgos_gcp_jwt_timeout, state);
+
   cs_base64_init(&ctx.b64_ctx, base64url_putc, &ctx);
   json_printf(&out, "{aud:%Q,iat:%llu,exp:%llu}",
               mgos_sys_config_get_gcp_project(), iat, exp);
@@ -156,8 +179,28 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
   opts->password = ctx.jwt.buf; /* No mbuf_free, caller owns the buffer. */
   mg_send_mqtt_handshake_opt(c, cid, *opts);
   free(cid);
-  (void) arg;
   (void) client_id;
+}
+
+static void mgos_gcp_mqtt_ev(struct mg_connection *nc, int ev,
+                      void *ev_data, void *user_data) {
+  struct gcp_state *state = (struct gcp_state *)user_data;
+
+  switch (ev) {
+    case MG_EV_MQTT_DISCONNECT: {
+      if (state->jwt_timeout != 0) {
+        mgos_clear_timer(state->jwt_timeout);
+        state->jwt_timeout = 0;
+      }
+      
+      break;
+    }
+
+    default: break;
+  }
+
+  (void)nc;
+  (void)ev_data;
 }
 
 bool mgos_gcp_init(void) {
@@ -180,7 +223,12 @@ bool mgos_gcp_init(void) {
     LOG(LL_ERROR, ("Invalid gcp.key (0x%x)", r));
     return false;
   }
-  mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, NULL);
+
+  struct gcp_state *state = malloc(sizeof(*state));
+  state->jwt_timeout = 0;
+
+  mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, state);
+  mgos_mqtt_add_global_handler(mgos_gcp_mqtt_ev, state);
   LOG(LL_INFO,
       ("GCP client for %s/%s/%s/%s, %s key in %s",
        mgos_sys_config_get_gcp_project(), mgos_sys_config_get_gcp_region(),
