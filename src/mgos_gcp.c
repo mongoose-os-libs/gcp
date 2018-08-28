@@ -25,8 +25,8 @@
 #include "mbedtls/pk.h"
 
 #include "frozen.h"
-#include "mongoose.h"
 #include "mgos_mongoose_internal.h"
+#include "mongoose.h"
 
 #include "mgos_mqtt.h"
 #include "mgos_sys_config.h"
@@ -47,7 +47,7 @@ struct jwt_printer_ctx {
 };
 
 struct gcp_state {
-  mgos_timer_id jwt_timeout;
+  mgos_timer_id token_ttl_timer_id;
 };
 
 static int json_printer_jwt(struct json_out *out, const char *data,
@@ -73,9 +73,9 @@ static void base64url_putc(char c, void *arg) {
 }
 
 static void mgos_gcp_jwt_timeout(void *param) {
-  struct gcp_state *state = (struct gcp_state *)param;
-  state->jwt_timeout = 0;
-  LOG(LL_DEBUG, ("Disconnecting global MQTT connection due to JWT timeout."));
+  struct gcp_state *state = (struct gcp_state *) param;
+  state->token_ttl_timer_id = MGOS_INVALID_TIMER_ID;
+  LOG(LL_INFO, ("Dropping MQTT connection due to imminent token expiration"));
   mgos_disconnect(mgos_mqtt_get_global_conn());
 }
 
@@ -83,10 +83,10 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
                                   const char *client_id,
                                   struct mg_send_mqtt_handshake_opts *opts,
                                   void *arg) {
-  struct gcp_state *state = (struct gcp_state *)arg;
-  if (state->jwt_timeout != 0) {
-    mgos_clear_timer(state->jwt_timeout);
-    state->jwt_timeout = 0;
+  struct gcp_state *state = (struct gcp_state *) arg;
+  if (state->token_ttl_timer_id != MGOS_INVALID_TIMER_ID) {
+    mgos_clear_timer(state->token_ttl_timer_id);
+    state->token_ttl_timer_id = MGOS_INVALID_TIMER_ID;
   }
 
   double now = mg_time();
@@ -107,8 +107,8 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
     LOG(LL_ERROR, ("Time is not set, GCP connection will fail. "
                    "Set the time or make sure SNTP is enabled and working."));
   }
-  state->jwt_timeout = mgos_set_timer((ttl * 1000) - 30000, 0, 
-                                      mgos_gcp_jwt_timeout, state);
+  state->token_ttl_timer_id =
+      mgos_set_timer((ttl - 30) * 1000, 0, mgos_gcp_jwt_timeout, state);
 
   cs_base64_init(&ctx.b64_ctx, base64url_putc, &ctx);
   json_printf(&out, "{aud:%Q,iat:%llu,exp:%llu}",
@@ -182,25 +182,26 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
   (void) client_id;
 }
 
-static void mgos_gcp_mqtt_ev(struct mg_connection *nc, int ev,
-                      void *ev_data, void *user_data) {
-  struct gcp_state *state = (struct gcp_state *)user_data;
+static void mgos_gcp_mqtt_ev(struct mg_connection *nc, int ev, void *ev_data,
+                             void *user_data) {
+  struct gcp_state *state = (struct gcp_state *) user_data;
 
   switch (ev) {
     case MG_EV_MQTT_DISCONNECT: {
-      if (state->jwt_timeout != 0) {
-        mgos_clear_timer(state->jwt_timeout);
-        state->jwt_timeout = 0;
+      if (state->token_ttl_timer_id != MGOS_INVALID_TIMER_ID) {
+        mgos_clear_timer(state->token_ttl_timer_id);
+        state->token_ttl_timer_id = MGOS_INVALID_TIMER_ID;
       }
-      
+
       break;
     }
 
-    default: break;
+    default:
+      break;
   }
 
-  (void)nc;
-  (void)ev_data;
+  (void) nc;
+  (void) ev_data;
 }
 
 bool mgos_gcp_init(void) {
@@ -224,8 +225,8 @@ bool mgos_gcp_init(void) {
     return false;
   }
 
-  struct gcp_state *state = malloc(sizeof(*state));
-  state->jwt_timeout = 0;
+  struct gcp_state *state = calloc(1, sizeof(*state));
+  state->token_ttl_timer_id = MGOS_INVALID_TIMER_ID;
 
   mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, state);
   mgos_mqtt_add_global_handler(mgos_gcp_mqtt_ev, state);
