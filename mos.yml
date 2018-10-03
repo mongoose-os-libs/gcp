@@ -6,6 +6,9 @@ version: 1.0
 sources:
   - src
 
+includes:
+  - include
+
 config_schema:
   - ["gcp", "o", {title: "GCP IOT settings"}]
   - ["gcp.enable", "b", false, {title: "Enable GCP IOT"}]

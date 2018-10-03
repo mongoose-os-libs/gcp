@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 
+#include "mgos_gcp.h"
+
 #include "common/cs_base64.h"
 #include "common/cs_dbg.h"
 #include "common/json_utils.h"
@@ -35,10 +37,10 @@
 static mbedtls_pk_context s_token_key;
 extern int mg_ssl_if_mbed_random(void *ctx, unsigned char *buf, size_t len);
 
-static const char *get_device_name(void) {
+struct mg_str mgos_gcp_get_device_id(void) {
   const char *result = mgos_sys_config_get_gcp_device();
-  if (result == NULL) result = mgos_sys_config_get_gcp_device();
-  return result;
+  if (result == NULL) result = mgos_sys_config_get_device_id();
+  return mg_mk_str(result);
 }
 
 struct jwt_printer_ctx {
@@ -167,10 +169,11 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
   mbuf_append(&ctx.jwt, "", 1); /* NUL */
 
   char *cid = NULL;
-  mg_asprintf(&cid, 0, "projects/%s/locations/%s/registries/%s/devices/%s",
+  struct mg_str did = mgos_gcp_get_device_id();
+  mg_asprintf(&cid, 0, "projects/%s/locations/%s/registries/%s/devices/%.*s",
               mgos_sys_config_get_gcp_project(),
               mgos_sys_config_get_gcp_region(),
-              mgos_sys_config_get_gcp_registry(), get_device_name());
+              mgos_sys_config_get_gcp_registry(), (int) did.len, did.p);
 
   LOG(LL_DEBUG, ("ID : %s", cid));
   LOG(LL_DEBUG, ("JWT: %s", ctx.jwt.buf));
@@ -205,6 +208,64 @@ static void mgos_gcp_mqtt_ev(struct mg_connection *nc, int ev, void *ev_data,
   (void) ev_data;
 }
 
+bool mgos_gcp_send_event(const struct mg_str data) {
+  return mgos_gcp_send_eventp(&data);
+}
+
+bool mgos_gcp_send_eventp(const struct mg_str *data) {
+  struct mg_str ns = MG_NULL_STR;
+  return mgos_gcp_send_event_subp(&ns, data);
+}
+
+bool mgos_gcp_send_eventf(const char *json_fmt, ...) {
+  bool res = false;
+  va_list ap;
+  va_start(ap, json_fmt);
+  char *data = json_vasprintf(json_fmt, ap);
+  va_end(ap);
+  if (data != NULL) {
+    res = mgos_gcp_send_event(mg_mk_str(data));
+    free(data);
+  }
+  return res;
+}
+
+bool mgos_gcp_send_event_sub(const struct mg_str subfolder,
+                             const struct mg_str data) {
+  return mgos_gcp_send_event_subp(&subfolder, &data);
+}
+
+bool mgos_gcp_send_event_subp(const struct mg_str *subfolder,
+                              const struct mg_str *data) {
+  char *topic;
+  bool res = false;
+  struct mg_str did = mgos_gcp_get_device_id();
+  if (did.len == 0) goto out;
+  mg_asprintf(&topic, 0, "/devices/%.*s/events%s%.*s", (int) did.len, did.p,
+              (subfolder->len > 0 && subfolder->p[0] != '/' ? "/" : ""),
+              (int) subfolder->len, subfolder->p);
+  if (topic != NULL) {
+    res = mgos_mqtt_pub(topic, data->p, data->len, 1 /* qos */, 0 /* retain */);
+    free(topic);
+  }
+out:
+  return res;
+}
+
+bool mgos_gcp_send_event_subf(const char *subfolder, const char *json_fmt,
+                              ...) {
+  bool res = false;
+  va_list ap;
+  va_start(ap, json_fmt);
+  char *data = json_vasprintf(json_fmt, ap);
+  va_end(ap);
+  if (data != NULL) {
+    res = mgos_gcp_send_event_sub(mg_mk_str(subfolder), mg_mk_str(data));
+    free(data);
+  }
+  return res;
+}
+
 bool mgos_gcp_init(void) {
   if (!mgos_sys_config_get_gcp_enable()) return true;
   if (mgos_sys_config_get_gcp_project() == NULL ||
@@ -214,7 +275,7 @@ bool mgos_gcp_init(void) {
     LOG(LL_ERROR, ("gcp.project, region, registry and key are required"));
     return false;
   }
-  if (get_device_name() == NULL) {
+  if (mgos_gcp_get_device_id().len == 0) {
     LOG(LL_ERROR, ("Either gcp.device or device.id must be set"));
     return false;
   }
@@ -231,10 +292,11 @@ bool mgos_gcp_init(void) {
 
   mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, state);
   mgos_mqtt_add_global_handler(mgos_gcp_mqtt_ev, state);
+  struct mg_str did = mgos_gcp_get_device_id();
   LOG(LL_INFO,
-      ("GCP client for %s/%s/%s/%s, %s key in %s",
+      ("GCP client for %s/%s/%s/%.*s, %s key in %s",
        mgos_sys_config_get_gcp_project(), mgos_sys_config_get_gcp_region(),
-       mgos_sys_config_get_gcp_registry(), get_device_name(),
+       mgos_sys_config_get_gcp_registry(), (int) did.len, did.p,
        mbedtls_pk_get_name(&s_token_key), mgos_sys_config_get_gcp_key()));
   struct mgos_config_mqtt mcfg = *mgos_sys_config_get_mqtt();
   mcfg.enable = true;
