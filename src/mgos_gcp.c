@@ -30,6 +30,7 @@
 #include "mgos_mongoose_internal.h"
 #include "mongoose.h"
 
+#include "mgos_event.h"
 #include "mgos_mqtt.h"
 #include "mgos_sys_config.h"
 #include "mgos_timers.h"
@@ -49,8 +50,11 @@ struct jwt_printer_ctx {
 };
 
 struct gcp_state {
+  bool connected;
   mgos_timer_id token_ttl_timer_id;
 };
+
+static struct gcp_state *s_state = NULL;
 
 static int json_printer_jwt(struct json_out *out, const char *data,
                             size_t len) {
@@ -191,12 +195,25 @@ static void mgos_gcp_mqtt_ev(struct mg_connection *nc, int ev, void *ev_data,
   struct gcp_state *state = (struct gcp_state *) user_data;
 
   switch (ev) {
+    case MG_EV_MQTT_CONNACK: {
+      int code = ((struct mg_mqtt_message *) ev_data)->connack_ret_code;
+      state->connected = (code == 0);
+      if (state->connected) {
+        struct mgos_cloud_arg arg = {.type = MGOS_CLOUD_GCP};
+        mgos_event_trigger(MGOS_EVENT_CLOUD_CONNECTED, &arg);
+      }
+      break;
+    }
     case MG_EV_MQTT_DISCONNECT: {
+      if (state->connected) {
+        state->connected = false;
+        struct mgos_cloud_arg arg = {.type = MGOS_CLOUD_GCP};
+        mgos_event_trigger(MGOS_EVENT_CLOUD_DISCONNECTED, &arg);
+      }
       if (state->token_ttl_timer_id != MGOS_INVALID_TIMER_ID) {
         mgos_clear_timer(state->token_ttl_timer_id);
         state->token_ttl_timer_id = MGOS_INVALID_TIMER_ID;
       }
-
       break;
     }
 
@@ -205,7 +222,6 @@ static void mgos_gcp_mqtt_ev(struct mg_connection *nc, int ev, void *ev_data,
   }
 
   (void) nc;
-  (void) ev_data;
 }
 
 bool mgos_gcp_send_event(const struct mg_str data) {
@@ -266,6 +282,10 @@ bool mgos_gcp_send_event_subf(const char *subfolder, const char *json_fmt,
   return res;
 }
 
+bool mgos_gcp_is_connected(void) {
+  return (s_state != NULL && s_state->connected);
+}
+
 bool mgos_gcp_init(void) {
   if (!mgos_sys_config_get_gcp_enable()) return true;
   if (mgos_sys_config_get_gcp_project() == NULL ||
@@ -302,5 +322,6 @@ bool mgos_gcp_init(void) {
   mcfg.enable = true;
   mcfg.server = "mqtt.googleapis.com";
   if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = "ca.pem";
+  s_state = state;
   return mgos_mqtt_set_config(&mcfg);
 }

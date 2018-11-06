@@ -27,6 +27,9 @@ extern "C" {
 
 struct mg_str mgos_gcp_get_device_id(void);
 
+/* Returns true if GCP connection is up, false otherwise. */
+bool mgos_gcp_is_connected(void);
+
 /*
  * Send a telemetry event to the default topic.
  *
