@@ -321,6 +321,7 @@ bool mgos_gcp_init(void) {
   struct mgos_config_mqtt mcfg = *mgos_sys_config_get_mqtt();
   mcfg.enable = true;
   mcfg.server = "mqtt.googleapis.com";
+  mcfg.require_time = true;
   if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = "ca.pem";
   s_state = state;
   return mgos_mqtt_set_config(&mcfg);
