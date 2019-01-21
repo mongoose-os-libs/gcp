@@ -21,9 +21,33 @@
 
 #include "common/mg_str.h"
 
+#include "mgos_event.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define MGOS_GCP_EV_BASE MGOS_EVENT_BASE('G', 'C', 'P')
+
+enum mgos_gcp_event {
+  /* Connected to Google IoT Core. Arg: NULL */
+  MGOS_GCP_EV_CONNECT = MGOS_GCP_EV_BASE,
+  /* Incoming config. Arg: struct mgos_gcp_config_arg * */
+  MGOS_GCP_EV_CONFIG,
+  /* Incoming command. Arg: struct mgos_gcp_command_arg * */
+  MGOS_GCP_EV_COMMAND,
+  /* Disonnected from the cloud. Arg: NULL */
+  MGOS_GCP_EV_CLOSE,
+};
+
+struct mgos_gcp_config_arg {
+  struct mg_str value;
+};
+
+struct mgos_gcp_command_arg {
+  struct mg_str value;
+  struct mg_str subfolder;
+};
 
 struct mg_str mgos_gcp_get_device_id(void);
 

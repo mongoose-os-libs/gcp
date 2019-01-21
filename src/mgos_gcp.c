@@ -201,6 +201,7 @@ static void mgos_gcp_mqtt_ev(struct mg_connection *nc, int ev, void *ev_data,
       if (state->connected) {
         struct mgos_cloud_arg arg = {.type = MGOS_CLOUD_GCP};
         mgos_event_trigger(MGOS_EVENT_CLOUD_CONNECTED, &arg);
+        mgos_event_trigger(MGOS_GCP_EV_CONNECT, NULL);
       }
       break;
     }
@@ -209,6 +210,7 @@ static void mgos_gcp_mqtt_ev(struct mg_connection *nc, int ev, void *ev_data,
         state->connected = false;
         struct mgos_cloud_arg arg = {.type = MGOS_CLOUD_GCP};
         mgos_event_trigger(MGOS_EVENT_CLOUD_DISCONNECTED, &arg);
+        mgos_event_trigger(MGOS_GCP_EV_CLOSE, NULL);
       }
       if (state->token_ttl_timer_id != MGOS_INVALID_TIMER_ID) {
         mgos_clear_timer(state->token_ttl_timer_id);
@@ -286,7 +288,41 @@ bool mgos_gcp_is_connected(void) {
   return (s_state != NULL && s_state->connected);
 }
 
+static void mgos_gcp_config_ev(struct mg_connection *nc, const char *topic,
+                               int topic_len, const char *msg, int msg_len,
+                               void *ud) {
+  struct mgos_gcp_config_arg arg = {
+      .value = MG_MK_STR_N(msg, msg_len),
+  };
+  LOG(LL_DEBUG, ("Config: '%.*s'", (int) arg.value.len, arg.value.p));
+  mgos_event_trigger(MGOS_GCP_EV_CONFIG, &arg);
+  (void) nc;
+  (void) ud;
+  (void) topic;
+  (void) topic_len;
+}
+
+static void mgos_gcp_command_ev(struct mg_connection *nc, const char *topic,
+                                int topic_len, const char *msg, int msg_len,
+                                void *ud) {
+  struct mgos_gcp_command_arg arg = {
+      .value = MG_MK_STR_N(msg, msg_len),
+  };
+  struct mg_str ts = MG_MK_STR_N(topic, topic_len);
+  const char *sc = mg_strstr(ts, mg_mk_str("/commands/"));
+  if (sc != NULL) {
+    arg.subfolder.p = sc + 10;
+    arg.subfolder.len = (ts.p + ts.len) - arg.subfolder.p;
+  }
+  LOG(LL_DEBUG, ("Command ('%.*s'): '%.*s'", (int) arg.subfolder.len,
+                 arg.subfolder.p, (int) arg.value.len, arg.value.p));
+  mgos_event_trigger(MGOS_GCP_EV_COMMAND, &arg);
+  (void) nc;
+  (void) ud;
+}
+
 bool mgos_gcp_init(void) {
+  mgos_event_register_base(MGOS_GCP_EV_BASE, __FILE__);
   if (!mgos_sys_config_get_gcp_enable()) return true;
   if (mgos_sys_config_get_gcp_project() == NULL ||
       mgos_sys_config_get_gcp_region() == NULL ||
@@ -320,10 +356,23 @@ bool mgos_gcp_init(void) {
        mbedtls_pk_get_name(&s_token_key), mgos_sys_config_get_gcp_key()));
   struct mgos_config_mqtt mcfg = *mgos_sys_config_get_mqtt();
   mcfg.enable = true;
-  mcfg.server = "mqtt.googleapis.com";
   mcfg.require_time = true;
   mcfg.cloud_events = false;
-  if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = "ca.pem";
+  mcfg.server = (char *) mgos_sys_config_get_gcp_server();
+  if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = (char *) "ca.pem";
   s_state = state;
-  return mgos_mqtt_set_config(&mcfg);
+  if (!mgos_mqtt_set_config(&mcfg)) return false;
+  if (mgos_sys_config_get_gcp_enable_config()) {
+    char *topic = NULL;
+    mg_asprintf(&topic, 0, "/devices/%.*s/config", (int) did.len, did.p);
+    mgos_mqtt_sub(topic, mgos_gcp_config_ev, NULL);
+    free(topic);
+  }
+  if (mgos_sys_config_get_gcp_enable_commands()) {
+    char *topic = NULL;
+    mg_asprintf(&topic, 0, "/devices/%.*s/commands/#", (int) did.len, did.p);
+    mgos_mqtt_sub(topic, mgos_gcp_command_ev, NULL);
+    free(topic);
+  }
+  return true;
 }
