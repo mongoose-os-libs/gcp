@@ -322,6 +322,7 @@ bool mgos_gcp_init(void) {
   mcfg.enable = true;
   mcfg.server = "mqtt.googleapis.com";
   mcfg.require_time = true;
+  mcfg.cloud_events = false;
   if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = "ca.pem";
   s_state = state;
   return mgos_mqtt_set_config(&mcfg);
