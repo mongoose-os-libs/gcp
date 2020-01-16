@@ -186,8 +186,9 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
   LOG(LL_DEBUG, ("JWT Refresh Timeout: %d", ((int) ttl - 30) * 1000));
 
   opts->user_name = "unused";
-  opts->password = ctx.jwt.buf; /* No mbuf_free, caller owns the buffer. */
+  opts->password = ctx.jwt.buf;
   mg_send_mqtt_handshake_opt(c, cid, *opts);
+  mbuf_free(&ctx.jwt);
   free(cid);
   (void) client_id;
 }
