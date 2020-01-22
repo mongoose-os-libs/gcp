@@ -365,8 +365,6 @@ bool mgos_gcp_init(void) {
   struct gcp_state *state = calloc(1, sizeof(*state));
   state->token_ttl_timer_id = MGOS_INVALID_TIMER_ID;
 
-  mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, state);
-  mgos_mqtt_add_global_handler(mgos_gcp_mqtt_ev, state);
   struct mg_str did = mgos_gcp_get_device_id();
   LOG(LL_INFO,
       ("GCP client for %s/%s/%s/%.*s, %s key in %s",
@@ -381,6 +379,8 @@ bool mgos_gcp_init(void) {
   if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = (char *) "ca.pem";
   s_state = state;
   if (!mgos_mqtt_set_config(&mcfg)) return false;
+  mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, state);
+  mgos_mqtt_add_global_handler(mgos_gcp_mqtt_ev, state);
   if (mgos_sys_config_get_gcp_enable_config()) {
     char *topic = NULL;
     mg_asprintf(&topic, 0, "/devices/%.*s/config", (int) did.len, did.p);
