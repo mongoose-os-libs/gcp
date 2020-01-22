@@ -18,6 +18,7 @@ config_schema:
   - ["gcp.registry", "s", "", {title: "Device registry name"}]
   - ["gcp.device", "s", "", {title: "Device name"}]
   - ["gcp.key", "s", "", {title: "Private key to use for token signing"}]
+  - ["gcp.ca_cert", "s", "", {title: "CA cert to use for peer verification. If not set, falls back to mqtt.ssl_ca_cert and then to ca.pem"}]
   - ["gcp.token_ttl", "i", 3600, {title: "Life time of the token"}]
   - ["gcp.enable_config", "b", false, {title: "Subscribe to the configuration topic"}]
   - ["gcp.enable_commands", "b", true, {title: "Subscribe to the command topic"}]

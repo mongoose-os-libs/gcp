@@ -375,8 +375,11 @@ bool mgos_gcp_init(void) {
   mcfg.enable = true;
   mcfg.require_time = true;
   mcfg.cloud_events = false;
-  mcfg.server = (char *) mgos_sys_config_get_gcp_server();
-  if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = (char *) "ca.pem";
+  mcfg.server = mgos_sys_config_get_gcp_server();
+  if (mgos_sys_config_get_gcp_ca_cert() != NULL) {
+    mcfg.ssl_ca_cert = mgos_sys_config_get_gcp_ca_cert();
+  }
+  if (mcfg.ssl_ca_cert == NULL) mcfg.ssl_ca_cert = "ca.pem";
   s_state = state;
   if (!mgos_mqtt_set_config(&mcfg)) return false;
   mgos_mqtt_set_connect_fn(mgos_gcp_mqtt_connect, state);
