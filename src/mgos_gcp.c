@@ -296,6 +296,85 @@ bool mgos_gcp_is_connected(void) {
   return (s_state->connected && s_state->have_acks >= s_state->want_acks);
 }
 
+
+bool mgos_gcp_send_state(const struct mg_str data) {
+	return mgos_gcp_send_statep(&data);
+}
+
+bool mgos_gcp_send_statep(const struct mg_str *data) {
+  char *topic;
+  bool res = false;
+  struct mg_str did = mgos_gcp_get_device_id();
+  if (did.len == 0)
+    goto out;
+  mg_asprintf(&topic, 0, "/devices/%.*s/state", (int) did.len, did.p);
+  if (topic != NULL) {
+    res = mgos_mqtt_pub(topic, data->p, data->len, 1 /* qos */, 0 /* retain */);
+    free(topic);
+  }
+out:
+  return res;
+}
+
+bool mgos_gcp_send_statef(const char *json_fmt, ...) {
+  bool res = false;
+  va_list ap;
+  va_start(ap, json_fmt);
+  char *data = json_vasprintf(json_fmt, ap);
+  va_end(ap);
+  if (data != NULL) {
+    res = mgos_gcp_send_state(mg_mk_str(data));
+    free(data);
+  }
+  return res;
+}
+
+
+struct conf_data {
+  conf_handler_t handler;
+  void *user_data;
+};
+
+static void gcpconftrampoline(int ev, void *ev_data, void *user_data) {
+  struct conf_data *cd = (struct conf_data *) user_data;
+  struct mgos_gcp_config_arg *cm = (struct mgos_gcp_config_arg *) ev_data;
+  cd->handler(&(cm->value), cd->user_data);
+}
+
+bool mgos_gcp_conf(conf_handler_t handler, void *user_data) {
+  bool res = false;
+  struct conf_data *cd = (struct conf_data *) malloc(sizeof(*cd));	// to be freed on handler removal, not (yet?) supported
+  cd->handler = handler;
+  cd->user_data = user_data;
+  res = mgos_event_add_handler(MGOS_GCP_EV_CONFIG, (mgos_event_handler_t) gcpconftrampoline, cd);
+  if(res != true)
+    free(cd);
+  return res;
+}
+
+struct cmd_data {
+  cmd_handler_t handler;
+  void *user_data;
+};
+
+static void gcpcmdtrampoline(int ev, void *ev_data, void *user_data) {
+  struct cmd_data *cd = (struct cmd_data *) user_data;
+  struct mgos_gcp_command_arg *cm = (struct mgos_gcp_command_arg *) ev_data;
+  cd->handler(&(cm->value), &(cm->subfolder), cd->user_data);
+}
+
+bool mgos_gcp_cmd(cmd_handler_t handler, void *user_data) {
+  bool res = false;
+  struct cmd_data *cd = (struct cmd_data *) malloc(sizeof(*cd));	// to be freed on handler removal, not (yet?) supported
+  cd->handler = handler;
+  cd->user_data = user_data;
+  res = mgos_event_add_handler(MGOS_GCP_EV_COMMAND, (mgos_event_handler_t) gcpcmdtrampoline, cd);
+  if(res != true)
+    free(cd);
+  return res;
+}
+
+
 static void mgos_gcp_config_ev(struct mg_connection *nc, int ev, void *ev_data,
                                void *user_data) {
   struct gcp_state *state = (struct gcp_state *) user_data;
