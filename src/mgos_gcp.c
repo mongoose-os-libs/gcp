@@ -360,6 +360,14 @@ struct cmd_data {
 static void gcpcmdtrampoline(int ev, void *ev_data, void *user_data) {
   struct cmd_data *cd = (struct cmd_data *) user_data;
   struct mgos_gcp_command_arg *cm = (struct mgos_gcp_command_arg *) ev_data;
+#ifdef MGOS_HAVE_RPC_GCP                        // if gcp-rcp is present
+  if (mgos_sys_config_get_rpc_gcp_enable()) {   // if gcp-rcp is enabled
+    const char *sf = mgos_sys_config_get_rpc_gcp_subfolder();
+    if (sf != NULL && mg_vcmp(&(cm->subfolder), sf) == 0) {
+      return; // do not call user handler on rpc dialogs (using specific subfolder)
+    }
+  }
+#endif
   cd->handler(&(cm->value), &(cm->subfolder), cd->user_data);
 }
 

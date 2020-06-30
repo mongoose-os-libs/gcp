@@ -30,8 +30,3 @@ let GCP = {
 Event.GCP = Event.baseNumber('GCP');
 Event.GCP_CONNECT = Event.GCP;
 Event.GCP_CLOSE = Event.GCP + 3;
-  // ## **`MQTT.sub(topic, handler)`**
-  // Subscribe to a topic, and call given handler function when message arrives.
-  // A handler receives 4 parameters: MQTT connection, topic name,
-  // message, and userdata.
-  // Return value: none.
