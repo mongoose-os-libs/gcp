@@ -10,18 +10,19 @@ includes:
   - include
 
 config_schema:
-  - ["gcp", "o", {title: "GCP IOT settings"}]
-  - ["gcp.enable", "b", false, {title: "Enable GCP IOT"}]
-  - ["gcp.server", "s", "mqtt.googleapis.com", {title: "Server address"}]
-  - ["gcp.project", "s", "", {title: "Project ID"}]
-  - ["gcp.region", "s", "", {title: "Region name"}]
-  - ["gcp.registry", "s", "", {title: "Device registry name"}]
-  - ["gcp.device", "s", "", {title: "Device name"}]
-  - ["gcp.key", "s", "", {title: "Private key to use for token signing"}]
-  - ["gcp.ca_cert", "s", "", {title: "CA cert to use for peer verification. If not set, falls back to mqtt.ssl_ca_cert and then to ca.pem"}]
-  - ["gcp.token_ttl", "i", 3600, {title: "Life time of the token"}]
-  - ["gcp.enable_config", "b", false, {title: "Subscribe to the configuration topic"}]
-  - ["gcp.enable_commands", "b", true, {title: "Subscribe to the command topic"}]
+  - [ "gcp", "o", { title: "GCP IOT settings" } ]
+  - [ "gcp.enable", "b", false, { title: "Enable GCP IOT" } ]
+  - [ "gcp.server", "s", "mqtt.googleapis.com", { title: "Server address" } ]
+  - [ "gcp.project", "s", "", { title: "Project ID" } ]
+  - [ "gcp.region", "s", "", { title: "Region name" } ]
+  - [ "gcp.registry", "s", "", { title: "Device registry name" } ]
+  - [ "gcp.device", "s", "", { title: "Device name" } ]
+  - [ "gcp.key", "s", "", { title: "Private key to use for token signing" } ]
+  - [ "gcp.ca_cert", "s", "", { title: "CA cert to use for peer verification. If not set, falls back to mqtt.ssl_ca_cert and then to ca.pem" } ]
+  - [ "gcp.token_ttl", "i", 3600, { title: "Life time of the token" } ]
+  - [ "gcp.enable_config", "b", false, { title: "Subscribe to the configuration topic" } ]
+  - [ "gcp.enable_commands", "b", true, { title: "Subscribe to the command topic" } ]
+  - [ "gcp.cloud_events", "b", true, { title: "Trigger cloud events when connected / disconnected" } ]
 
 libs:
   - origin: https://github.com/mongoose-os-libs/ca-bundle
