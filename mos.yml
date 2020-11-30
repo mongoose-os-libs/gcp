@@ -22,6 +22,7 @@ config_schema:
   - ["gcp.token_ttl", "i", 3600, {title: "Life time of the token"}]
   - ["gcp.enable_config", "b", false, {title: "Subscribe to the configuration topic"}]
   - ["gcp.enable_commands", "b", true, {title: "Subscribe to the command topic"}]
+  - ["gcp.cloud_events", "b", true, {title: "Trigger cloud events when connected / disconnected"}]
 
 libs:
   - origin: https://github.com/mongoose-os-libs/ca-bundle
