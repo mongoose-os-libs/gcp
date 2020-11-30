@@ -1,5 +1,14 @@
 .vscode
 .idea
+<<<<<<< HEAD
 build
 build/***
+=======
+.idea/*
+build
+build/***
+deps
+deps*
+***/node_modules
+>>>>>>> ff3caf91b887a3e6a5b69c5178581579f9429a5d
 core-*
