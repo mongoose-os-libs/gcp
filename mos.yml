@@ -24,10 +24,10 @@ config_schema:
   - ["gcp.enable_commands", "b", true, {title: "Subscribe to the command topic"}]
 
 libs:
-  - origin: https://github.com/mongoose-os-libs/ca-bundle
-  - origin: https://github.com/mongoose-os-libs/mqtt
+  - location: https://github.com/mongoose-os-libs/ca-bundle
+  - location: https://github.com/mongoose-os-libs/mqtt
   # GCP requires valid time to sign tickets.
-  - origin: https://github.com/mongoose-os-libs/sntp
+  - location: https://github.com/mongoose-os-libs/sntp
 
 tags:
   - c
