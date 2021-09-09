@@ -111,10 +111,6 @@ static void mgos_gcp_mqtt_connect(struct mg_connection *c,
   uint64_t iat = (uint64_t) now;
   uint64_t ttl = (uint64_t) mgos_sys_config_get_gcp_token_ttl();
   uint64_t exp = iat + ttl;
-  if (exp < 1500000000) {
-    LOG(LL_ERROR, ("Time is not set, GCP connection will fail. "
-                   "Set the time or make sure SNTP is enabled and working."));
-  }
   state->token_ttl_timer_id =
       mgos_set_timer((ttl - 30) * 1000, 0, mgos_gcp_jwt_timeout, state);
 
