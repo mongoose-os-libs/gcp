@@ -77,6 +77,38 @@ bool mgos_gcp_send_event_subp(const struct mg_str *subfolder,
                               const struct mg_str *data);
 bool mgos_gcp_send_event_subf(const char *subfolder, const char *json_fmt, ...);
 
+/*
+ * Send a state update
+ *
+ * E.g.: mgos_gcp_send_statef("{foo: %d}", foo);
+ */
+bool mgos_gcp_send_state(const struct mg_str data);
+bool mgos_gcp_send_statep(const struct mg_str *data);
+bool mgos_gcp_send_statef(const char *json_fmt, ...);
+
+/*
+ * Callback signature for `mgos_gcp_conf()` below.
+ */
+typedef void (*conf_handler_t)(const struct mg_str *data,
+                              void *ud);
+/*
+ * Callback signature for `mgos_gcp_cmd()` below.
+ */
+typedef void (*cmd_handler_t)(const struct mg_str *data,
+                              const struct mg_str *subfolder,
+			      void *ud);
+
+/*
+ * Register to receive config messages
+ */
+bool mgos_gcp_conf(conf_handler_t, void *ud);
+
+/*
+ * Register to receive command messages
+ */
+bool mgos_gcp_cmd(cmd_handler_t, void *ud);
+
+
 #ifdef __cplusplus
 }
 #endif
