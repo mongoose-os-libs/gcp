@@ -36,6 +36,7 @@
 #include "mgos_timers.h"
 
 static mbedtls_pk_context s_token_key;
+
 extern int mg_ssl_if_mbed_random(void *ctx, unsigned char *buf, size_t len);
 
 struct mg_str mgos_gcp_get_device_id(void) {
@@ -370,7 +371,7 @@ bool mgos_gcp_init(void) {
   struct mgos_config_mqtt mcfg = *mgos_sys_config_get_mqtt();
   mcfg.enable = true;
   mcfg.require_time = true;
-  mcfg.cloud_events = false;
+  mcfg.cloud_events = mgos_sys_config_get_gcp_cloud_events();
   mcfg.server = mgos_sys_config_get_gcp_server();
   if (mgos_sys_config_get_gcp_ca_cert() != NULL) {
     mcfg.ssl_ca_cert = mgos_sys_config_get_gcp_ca_cert();
